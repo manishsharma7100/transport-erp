@@ -14,9 +14,11 @@ scope = [
 ]
 
 import json
+
 creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    json.loads(st.secrets["gspread"]), scope
+    st.secrets["gspread"], scope
 )
+
 
 client = gspread.authorize(creds)
 sheet = client.open("transport_trip_log").sheet1  # Make sure name matches your Google Sheet
