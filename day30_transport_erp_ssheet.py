@@ -12,7 +12,12 @@ scope = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive"
 ]
-creds = ServiceAccountCredentials.from_json_keyfile_name("gspread_key.json", scope)
+
+import json
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    json.loads(st.secrets["gspread"]), scope
+)
+
 client = gspread.authorize(creds)
 sheet = client.open("transport_trip_log").sheet1  # Make sure name matches your Google Sheet
 
