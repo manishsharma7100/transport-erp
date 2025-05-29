@@ -4,6 +4,17 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+# ---- ML MODEL TRAINING ----
+# Example static training data (you can improve this later)
+km_train = np.array([[50], [60], [80], [100], [120]])
+cost_train = np.array([750, 900, 1200, 1500, 1800])
+
+model = LinearRegression()
+model.fit(km_train, cost_train)
+
 
 # Google Sheets setup
 scope = [
