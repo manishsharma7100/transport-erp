@@ -22,6 +22,13 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(
 
 client = gspread.authorize(creds)
 sheet = client.open("transport_trip_log").sheet1  # Make sure name matches your Google Sheet
+# Add header row to sheet if not present
+try:
+    if sheet.row_count == 0 or sheet.row_values(1) == []:
+        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
+except:
+    pass
+
 
 # Streamlit layout
 st.set_page_config(page_title="Transport ERP", layout="wide")
@@ -41,23 +48,54 @@ if menu == "Trip Entry":
 
     if st.button("Save Trip"):
         if driver and vehicle and from_city and to_city and km > 0:
-            row = [datetime.now().strftime("%Y-%m-%d %H:%M"), driver, vehicle, from_city, to_city, km]
-            sheet.append_row(row)
-            st.success("Trip saved to Google Sheet successfully!")
+                
+            trip_type = "LONG TRIP" if km >= 300 else "SHORT TRIP"
+            predicted_cost = model.predict([[km]])[0]
+
+            trip_row = [
+                datetime.now().strftime("%Y-%m-%d %H:%M"),
+                driver,
+                vehicle,
+                from_city,
+                to_city,
+                km,
+                round(predicted_cost),
+                trip_type
+            ]
+
+            try:
+                sheet.append_row(trip_row)
+                st.success("✅ Trip saved with AI prediction!")
+            except Exception as e:
+                st.error(f"❌ Failed to save trip: {e}")
         else:
             st.error("Please fill all fields.")
 
 # -------------------- TRIP TABLE --------------------
+
 elif menu == "Trip Table":
     st.subheader("📋 View and Filter Trips")
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
     if not df.empty:
+        # Convert KM and Cost to numbers if needed
+        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+        if "Cost" in df.columns:
+            df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+
+        # Trip Type filter (if present)
+        if "Trip Type" in df.columns:
+            trip_type_filter = st.selectbox("Filter by Trip Type", options=["All"] + sorted(df["Trip Type"].unique()))
+        else:
+            trip_type_filter = "All"
+
         driver_filter = st.selectbox("Filter by Driver", options=["All"] + sorted(df["Driver"].unique()))
         from_filter = st.selectbox("Filter by From City", options=["All"] + sorted(df["From"].unique()))
 
         filtered_df = df.copy()
+        if trip_type_filter != "All":
+            filtered_df = filtered_df[filtered_df["Trip Type"] == trip_type_filter]
         if driver_filter != "All":
             filtered_df = filtered_df[filtered_df["Driver"] == driver_filter]
         if from_filter != "All":
@@ -65,10 +103,15 @@ elif menu == "Trip Table":
 
         st.dataframe(filtered_df)
 
+        # Show revenue only if 'Cost' exists
+        if "Cost" in filtered_df.columns:
+            st.metric("Total Predicted Revenue", f"₹{filtered_df['Cost'].sum():,.0f}")
+
         csv = filtered_df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Filtered CSV", data=csv, file_name="filtered_trips.csv", mime="text/csv")
     else:
         st.warning("No data found.")
+
 
 # -------------------- ANALYTICS --------------------
 elif menu == "Analytics":
