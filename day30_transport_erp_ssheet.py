@@ -16,32 +16,35 @@ import os
 # ---------- MODEL LOADING OR TRAINING ----------
 MODEL_PATH = "trip_cost_model.pkl"
 
-def train_model_from_sheet():
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
+def train_model_from_sheet(sheet):
+    try:
+        records = sheet.get_all_records()
+        df = pd.DataFrame(records)
 
-    if not df.empty and "KM" in df.columns and "Cost" in df.columns:
-        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
-        df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
-        df.dropna(subset=["KM", "Cost"], inplace=True)
+        if not df.empty and "KM" in df.columns and "Cost" in df.columns:
+            df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+            df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+            df.dropna(subset=["KM", "Cost"], inplace=True)
 
-        X = df[["KM"]]
-        y = df["Cost"]
+            X = df[["KM"]]
+            y = df["Cost"]
 
-        trained_model = LinearRegression()
-        trained_model.fit(X, y)
+            trained_model = LinearRegression()
+            trained_model.fit(X, y)
 
-        joblib.dump(trained_model, MODEL_PATH)
-        return trained_model
-    else:
+            joblib.dump(trained_model, MODEL_PATH)
+            return trained_model
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Model training failed: {e}")
         return None
 
-# Try loading model
+# ✅ Try loading model from file or train fresh from Google Sheet
 if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
 else:
     model = train_model_from_sheet(sheet)
-
 
 # ------------------ GOOGLE SHEET SETUP ------------------
 scope = [
