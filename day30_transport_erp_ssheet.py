@@ -37,22 +37,20 @@ except:
 # ------------------ ML MODEL TRAINING ------------------
 
 # ---------- MODEL LOADING OR TRAINING ----------
+# ----------- MODEL TRAINING FROM SHEET -----------
 MODEL_PATH = "trip_cost_model.pkl"
 
 def train_model_from_sheet(sheet):
     try:
-        st.info("📥 Loading data from Google Sheet...")
         records = sheet.get_all_records()
-        st.success(f"✅ Loaded {len(records)} records")
+        if not records:
+            st.warning("⚠️ No data found in sheet to train.")
+            return None
 
         df = pd.DataFrame(records)
 
-        if df.empty:
-            st.warning("⚠️ Google Sheet is empty. Cannot train model.")
-            return None
-
         if "KM" not in df.columns or "Cost" not in df.columns:
-            st.error("❌ 'KM' and 'Cost' columns not found in sheet.")
+            st.error("❌ Columns 'KM' and 'Cost' are missing in sheet.")
             return None
 
         df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
@@ -64,14 +62,16 @@ def train_model_from_sheet(sheet):
 
         trained_model = LinearRegression()
         trained_model.fit(X, y)
-
         joblib.dump(trained_model, MODEL_PATH)
-        st.success("✅ Model trained and saved successfully.")
+
         return trained_model
 
     except Exception as e:
-        st.error(f"❌ Model training failed: {e}")
+        st.error(f"❌ Training failed: {e}")
         return None
+
+
+
 # ------------------ TRIP ENTRY ------------------
 if menu == "Trip Entry":
     st.subheader("📝 Enter a New Trip")
