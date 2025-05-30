@@ -159,6 +159,7 @@ elif menu == "Analytics":
         st.warning("No data to analyze.")
 
 # ------------------ ADMIN TOOLS ------------------
+# -------------------- ADMIN TOOLS --------------------
 elif menu == "Admin Tools":
     st.subheader("🛠️ Admin Panel – Manage Trips")
     data = sheet.get_all_records()
@@ -166,14 +167,27 @@ elif menu == "Admin Tools":
 
     if not df.empty:
         st.dataframe(df)
+        
+        # 👇 Delete Row
         row_to_delete = st.number_input("Enter row number to delete", min_value=0, max_value=len(df)-1, step=1)
         if st.button("Delete Selected Row"):
-            sheet.delete_rows(row_to_delete + 2)
-            st.success(f"Deleted row {row_to_delete}")
+            sheet.delete_rows(row_to_delete + 2)  # +2 to skip header
+            st.success(f"✅ Deleted row {row_to_delete}")
 
+        # 👇 Clear Sheet
         if st.button("🗑️ Clear All Trips"):
             sheet.clear()
             sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
-            st.success("All trips cleared.")
+            st.success("🧹 All trips cleared.")
+
+        # ✅ TRAIN AI MODEL BUTTON
+        st.markdown("---")
+        if st.button("🔁 Train AI Model from Sheet"):
+            try:
+                model = train_model_from_sheet()
+                st.success("✅ Model retrained successfully using Google Sheet data!")
+            except Exception as e:
+                st.error(f"❌ Model training failed: {e}")
+
     else:
         st.warning("No trip data available.")
