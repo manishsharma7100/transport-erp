@@ -11,6 +11,29 @@ import joblib
 import os
 
 
+# ------------------ GOOGLE SHEET SETUP ------------------
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive"
+]
+
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    st.secrets["gspread"], scope
+)
+client = gspread.authorize(creds)
+sheet = client.open("transport_trip_log").sheet1
+
+# Ensure header exists
+try:
+    if sheet.row_count == 0 or sheet.row_values(1) == []:
+        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
+except:
+    pass
+
+
+
 # ------------------ ML MODEL TRAINING ------------------
 
 # ---------- MODEL LOADING OR TRAINING ----------
@@ -45,27 +68,6 @@ if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
 else:
     model = train_model_from_sheet(sheet)
-
-# ------------------ GOOGLE SHEET SETUP ------------------
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive"
-]
-
-creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    st.secrets["gspread"], scope
-)
-client = gspread.authorize(creds)
-sheet = client.open("transport_trip_log").sheet1
-
-# Ensure header exists
-try:
-    if sheet.row_count == 0 or sheet.row_values(1) == []:
-        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
-except:
-    pass
 
 # ------------------ STREAMLIT LAYOUT ------------------
 st.set_page_config(page_title="Transport ERP", layout="wide")
