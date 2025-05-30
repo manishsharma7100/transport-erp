@@ -7,12 +7,40 @@ from datetime import datetime
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import json
+import joblib
+import os
+
 
 # ------------------ ML MODEL TRAINING ------------------
-km_train = np.array([[50], [60], [80], [100], [120]])
-cost_train = np.array([750, 900, 1200, 1500, 1800])
-model = LinearRegression()
-model.fit(km_train, cost_train)
+
+# ---------- MODEL LOADING OR TRAINING ----------
+MODEL_PATH = "trip_cost_model.pkl"
+
+def train_model_from_sheet():
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
+
+    if not df.empty and "KM" in df.columns and "Cost" in df.columns:
+        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+        df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+        df.dropna(subset=["KM", "Cost"], inplace=True)
+
+        X = df[["KM"]]
+        y = df["Cost"]
+
+        trained_model = LinearRegression()
+        trained_model.fit(X, y)
+
+        joblib.dump(trained_model, MODEL_PATH)
+        return trained_model
+    else:
+        return None
+
+# Try loading model
+if os.path.exists(MODEL_PATH):
+    model = joblib.load(MODEL_PATH)
+else:
+    model = train_model_from_sheet()
 
 # ------------------ GOOGLE SHEET SETUP ------------------
 scope = [
