@@ -2,21 +2,19 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-from datetime import datetime
 import matplotlib.pyplot as plt
+from datetime import datetime
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import json
 
-# ---- ML MODEL TRAINING ----
-# Example static training data (you can improve this later)
+# ------------------ ML MODEL TRAINING ------------------
 km_train = np.array([[50], [60], [80], [100], [120]])
 cost_train = np.array([750, 900, 1200, 1500, 1800])
-
 model = LinearRegression()
 model.fit(km_train, cost_train)
 
-
-# Google Sheets setup
+# ------------------ GOOGLE SHEET SETUP ------------------
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -24,30 +22,25 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-import json
-
 creds = ServiceAccountCredentials.from_json_keyfile_dict(
     st.secrets["gspread"], scope
 )
-
-
 client = gspread.authorize(creds)
-sheet = client.open("transport_trip_log").sheet1  # Make sure name matches your Google Sheet
-# Add header row to sheet if not present
+sheet = client.open("transport_trip_log").sheet1
+
+# Ensure header exists
 try:
     if sheet.row_count == 0 or sheet.row_values(1) == []:
         sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
 except:
     pass
 
-
-# Streamlit layout
+# ------------------ STREAMLIT LAYOUT ------------------
 st.set_page_config(page_title="Transport ERP", layout="wide")
 st.title("🚛 Transport ERP System")
-
 menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools"])
 
-# -------------------- TRIP ENTRY --------------------
+# ------------------ TRIP ENTRY ------------------
 if menu == "Trip Entry":
     st.subheader("📝 Enter a New Trip")
 
@@ -59,19 +52,13 @@ if menu == "Trip Entry":
 
     if st.button("Save Trip"):
         if driver and vehicle and from_city and to_city and km > 0:
-                
             trip_type = "LONG TRIP" if km >= 300 else "SHORT TRIP"
             predicted_cost = model.predict([[km]])[0]
 
             trip_row = [
                 datetime.now().strftime("%Y-%m-%d %H:%M"),
-                driver,
-                vehicle,
-                from_city,
-                to_city,
-                km,
-                round(predicted_cost),
-                trip_type
+                driver, vehicle, from_city, to_city, km,
+                round(predicted_cost), trip_type
             ]
 
             try:
@@ -82,20 +69,17 @@ if menu == "Trip Entry":
         else:
             st.error("Please fill all fields.")
 
-# -------------------- TRIP TABLE --------------------
-
+# ------------------ TRIP TABLE ------------------
 elif menu == "Trip Table":
     st.subheader("📋 View and Filter Trips")
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
     if not df.empty:
-        # Convert KM and Cost to numbers if needed
         df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
         if "Cost" in df.columns:
             df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
 
-        # Trip Type filter (if present)
         if "Trip Type" in df.columns:
             trip_type_filter = st.selectbox("Filter by Trip Type", options=["All"] + sorted(df["Trip Type"].unique()))
         else:
@@ -114,7 +98,6 @@ elif menu == "Trip Table":
 
         st.dataframe(filtered_df)
 
-        # Show revenue only if 'Cost' exists
         if "Cost" in filtered_df.columns:
             st.metric("Total Predicted Revenue", f"₹{filtered_df['Cost'].sum():,.0f}")
 
@@ -123,8 +106,7 @@ elif menu == "Trip Table":
     else:
         st.warning("No data found.")
 
-
-# -------------------- ANALYTICS --------------------
+# ------------------ ANALYTICS ------------------
 elif menu == "Analytics":
     st.subheader("📊 Trip Analytics Dashboard")
     data = sheet.get_all_records()
@@ -148,7 +130,7 @@ elif menu == "Analytics":
     else:
         st.warning("No data to analyze.")
 
-# -------------------- ADMIN TOOLS --------------------
+# ------------------ ADMIN TOOLS ------------------
 elif menu == "Admin Tools":
     st.subheader("🛠️ Admin Panel – Manage Trips")
     data = sheet.get_all_records()
@@ -158,15 +140,12 @@ elif menu == "Admin Tools":
         st.dataframe(df)
         row_to_delete = st.number_input("Enter row number to delete", min_value=0, max_value=len(df)-1, step=1)
         if st.button("Delete Selected Row"):
-            sheet.delete_rows(row_to_delete + 2)  # +2 accounts for header and 0-index
+            sheet.delete_rows(row_to_delete + 2)
             st.success(f"Deleted row {row_to_delete}")
 
         if st.button("🗑️ Clear All Trips"):
             sheet.clear()
-            sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM"])
+            sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
             st.success("All trips cleared.")
     else:
         st.warning("No trip data available.")
-
-        
-
