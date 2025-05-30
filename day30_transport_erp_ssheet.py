@@ -41,39 +41,37 @@ MODEL_PATH = "trip_cost_model.pkl"
 
 def train_model_from_sheet(sheet):
     try:
+        st.info("📥 Loading data from Google Sheet...")
         records = sheet.get_all_records()
+        st.success(f"✅ Loaded {len(records)} records")
+
         df = pd.DataFrame(records)
 
-        if not df.empty and "KM" in df.columns and "Cost" in df.columns:
-            df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
-            df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
-            df.dropna(subset=["KM", "Cost"], inplace=True)
-
-            X = df[["KM"]]
-            y = df["Cost"]
-
-            trained_model = LinearRegression()
-            trained_model.fit(X, y)
-
-            joblib.dump(trained_model, MODEL_PATH)
-            return trained_model
-        else:
+        if df.empty:
+            st.warning("⚠️ Google Sheet is empty. Cannot train model.")
             return None
+
+        if "KM" not in df.columns or "Cost" not in df.columns:
+            st.error("❌ 'KM' and 'Cost' columns not found in sheet.")
+            return None
+
+        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+        df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+        df.dropna(subset=["KM", "Cost"], inplace=True)
+
+        X = df[["KM"]]
+        y = df["Cost"]
+
+        trained_model = LinearRegression()
+        trained_model.fit(X, y)
+
+        joblib.dump(trained_model, MODEL_PATH)
+        st.success("✅ Model trained and saved successfully.")
+        return trained_model
+
     except Exception as e:
-        st.error(f"Model training failed: {e}")
+        st.error(f"❌ Model training failed: {e}")
         return None
-
-# ✅ Try loading model from file or train fresh from Google Sheet
-if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
-else:
-    model = train_model_from_sheet(sheet)
-
-# ------------------ STREAMLIT LAYOUT ------------------
-st.set_page_config(page_title="Transport ERP", layout="wide")
-st.title("🚛 Transport ERP System")
-menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools"])
-
 # ------------------ TRIP ENTRY ------------------
 if menu == "Trip Entry":
     st.subheader("📝 Enter a New Trip")
