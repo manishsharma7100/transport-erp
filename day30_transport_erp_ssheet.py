@@ -40,7 +40,8 @@ def train_model_from_sheet():
 if os.path.exists(MODEL_PATH):
     model = joblib.load(MODEL_PATH)
 else:
-    model = train_model_from_sheet()
+    model = train_model_from_sheet(sheet)
+
 
 # ------------------ GOOGLE SHEET SETUP ------------------
 scope = [
