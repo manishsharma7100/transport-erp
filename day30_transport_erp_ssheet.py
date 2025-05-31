@@ -6,17 +6,10 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import joblib
+import os
 
-# ---- ML MODEL TRAINING ----
-# Example static training data (you can improve this later)
-km_train = np.array([[50], [60], [80], [100], [120]])
-cost_train = np.array([750, 900, 1200, 1500, 1800])
-
-model = LinearRegression()
-model.fit(km_train, cost_train)
-
-
-# Google Sheets setup
+# ---------------- GOOGLE SHEET SETUP ----------------
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -24,28 +17,74 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-import json
-
 creds = ServiceAccountCredentials.from_json_keyfile_dict(
     st.secrets["gspread"], scope
 )
 
-
 client = gspread.authorize(creds)
-sheet = client.open("transport_trip_log").sheet1  # Make sure name matches your Google Sheet
-# Add header row to sheet if not present
+sheet = client.open("transport_trip_log").sheet1
+
+# Ensure header row exists
 try:
     if sheet.row_count == 0 or sheet.row_values(1) == []:
         sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
 except:
     pass
 
+# ---------------- MODEL TRAINING ----------------
+MODEL_PATH = "trip_cost_model.pkl"
 
-# Streamlit layout
+def train_model_from_sheet(sheet):
+    try:
+        records = sheet.get_all_records()
+        if not records:
+            st.warning("⚠️ No data found in sheet to train.")
+            return None
+
+        df = pd.DataFrame(records)
+
+        if "KM" not in df.columns or "Cost" not in df.columns:
+            st.error("❌ Columns 'KM' and 'Cost' are missing in sheet.")
+            return None
+
+        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+        df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+        df.dropna(subset=["KM", "Cost"], inplace=True)
+
+        X = df[["KM"]]
+        y = df["Cost"]
+
+        trained_model = LinearRegression()
+        trained_model.fit(X, y)
+        joblib.dump(trained_model, MODEL_PATH)
+
+        return trained_model
+
+    except Exception as e:
+        st.error(f"❌ Training failed: {e}")
+        return None
+
+# Try loading the model
+model = None
+if os.path.exists(MODEL_PATH):
+    try:
+        model = joblib.load(MODEL_PATH)
+    except Exception as e:
+        st.warning(f"⚠️ Failed to load model from file: {e}")
+
+if model is None:
+    model = train_model_from_sheet(sheet)
+
+# ---------------- STREAMLIT APP START ----------------
 st.set_page_config(page_title="Transport ERP", layout="wide")
 st.title("🚛 Transport ERP System")
 
 menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools"])
+
+# Add rest of your Streamlit app here...
+# This block sets up Sheet + AI Model with error handling and retraining ability.
+
+
 
 # -------------------- TRIP ENTRY --------------------
 if menu == "Trip Entry":
