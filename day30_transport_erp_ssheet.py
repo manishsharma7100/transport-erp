@@ -8,6 +8,8 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import joblib
 import os
+import requests
+
 
 # ---------------- GOOGLE SHEET SETUP ----------------
 
@@ -56,6 +58,31 @@ def train_model_from_sheet(sheet):
     else:
         return None
 
+
+#Google Maps setup
+
+def get_distance_from_google_maps(origin, destination):
+    try:
+        api_key = st.secrets["maps_api_key"]
+        url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+        params = {
+            "origins": origin,
+            "destinations": destination,
+            "key": api_key,
+            "units": "metric"
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        if data["status"] == "OK":
+            distance_text = data["rows"][0]["elements"][0]["distance"]["text"]
+            distance_km = float(distance_text.replace(" km", "").replace(",", ""))
+            return distance_km
+        else:
+            return None
+    except Exception as e:
+        st.warning(f"Google Maps error: {e}")
+        return None
 
 
 # ---------------- MODEL TRAINING ----------------
@@ -121,13 +148,34 @@ if menu == "Trip Entry":
     vehicle = st.text_input("Vehicle Number")
     from_city = st.text_input("From City")
     to_city = st.text_input("To City")
-    km = st.number_input("Distance in KM", min_value=0.0, step=1.0)
+
+    # Fetch distance using Google Maps API
+    distance_km = None
+    if from_city and to_city:
+        from urllib.parse import quote
+        import requests
+
+        api_key = st.secrets["AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY"]
+        origins = quote(from_city)
+        destinations = quote(to_city)
+        url = f"https://maps.googleapis.com/maps/api/distancematrix/json?origins={origins}&destinations={destinations}&key={AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY}"
+
+        try:
+            response = requests.get(url)
+            data = response.json()
+            if data["rows"][0]["elements"][0]["status"] == "OK":
+                meters = data["rows"][0]["elements"][0]["distance"]["value"]
+                distance_km = round(meters / 1000, 2)
+                st.success(f"📍 Distance fetched: {distance_km} km")
+            else:
+                st.warning("⚠️ Google API could not find a valid route.")
+        except Exception as e:
+            st.error(f"❌ Error fetching distance: {e}")
 
     if st.button("Save Trip"):
-        if driver and vehicle and from_city and to_city and km > 0:
-                
-            trip_type = "LONG TRIP" if km >= 300 else "SHORT TRIP"
-            predicted_cost = model.predict([[km]])[0]
+        if driver and vehicle and from_city and to_city and distance_km:
+            trip_type = "LONG TRIP" if distance_km >= 300 else "SHORT TRIP"
+            predicted_cost = model.predict([[distance_km]])[0]
 
             trip_row = [
                 datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -135,19 +183,18 @@ if menu == "Trip Entry":
                 vehicle,
                 from_city,
                 to_city,
-                km,
+                distance_km,
                 round(predicted_cost),
                 trip_type
             ]
 
             try:
                 sheet.append_row(trip_row)
-                st.success("✅ Trip saved with AI prediction!")
+                st.success("✅ Trip saved with AI cost prediction!")
             except Exception as e:
                 st.error(f"❌ Failed to save trip: {e}")
         else:
-            st.error("Please fill all fields.")
-
+            st.error("Please complete all fields and ensure distance is fetched.")
 # -------------------- TRIP TABLE --------------------
 
 elif menu == "Trip Table":
