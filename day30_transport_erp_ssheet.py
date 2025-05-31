@@ -234,12 +234,14 @@ elif menu == "Admin Tools":
     else:
         st.warning("No trip data available.")
 
-st.markdown("### 🔁 Retrain AI Model")
-if st.button("Retrain from Sheet Data"):
-    new_model = train_model_from_sheet(sheet)
-    if new_model:
-        model = new_model
-        st.success("✅ Model retrained successfully and saved!")
-    else:
-        st.error("❌ Failed to retrain. Please ensure KM and Cost data exist.")
+    st.markdown("---")
+    st.markdown("### 🔁 Retrain AI Model")
+    if st.button("Retrain from Sheet Data"):
+        new_model = train_model_from_sheet(sheet)
+        if new_model:
+            model = new_model
+            st.success("✅ Model retrained successfully and saved!")
+        else:
+            st.error("❌ Failed to retrain. Please ensure KM and Cost data exist.")
+
 
