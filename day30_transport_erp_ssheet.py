@@ -190,8 +190,8 @@ elif menu == "Trip Table":
         st.warning("No data found.")
 
 
-# -------------------- ANALYTICS --------------------
-elif menu == "Analytics":
+# ---------------- ANALYTICS ----------------
+if menu == "Analytics":
     st.subheader("📊 Trip Analytics Dashboard")
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
@@ -203,7 +203,6 @@ elif menu == "Analytics":
         col3.metric("Drivers", df["Driver"].nunique())
 
         st.markdown("---")
-
         st.subheader("Trips per Driver")
         st.bar_chart(df["Driver"].value_counts())
 
@@ -212,27 +211,27 @@ elif menu == "Analytics":
         df.groupby("Driver")["KM"].sum().plot.pie(autopct="%1.1f%%", ax=ax)
         st.pyplot(fig)
 
-    #COST PREDICTION VS ACTUAL Under Analytics ----------
-st.subheader("📉 Actual vs Predicted Trip Cost")
+        # ---------- COST PREDICTION VS ACTUAL ----------
+        st.subheader("📉 Actual vs Predicted Trip Cost")
+        try:
+            df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+            df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+            df = df.dropna(subset=["KM", "Cost"])
 
-try:
-    df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
-    df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
-    df = df.dropna(subset=["KM", "Cost"])
+            df["Predicted"] = model.predict(df[["KM"]])
 
-    # Predict using current model
-    df["Predicted"] = model.predict(df[["KM"]])
+            st.line_chart(df[["Cost", "Predicted"]])
 
-    st.line_chart(df[["Cost", "Predicted"]])
-except Exception as e:
-    st.warning(f"Could not generate prediction graph: {e}")
+            df["Error"] = df["Cost"] - df["Predicted"]
+            st.dataframe(df[["KM", "Cost", "Predicted", "Error"]])
 
+        except Exception as e:
+            st.warning(f"Could not generate prediction graph: {e}")
 
-    
     else:
         st.warning("No data to analyze.")
 
- 
+# The rest of your app (Trip Entry, Trip Table, Admin Tools) continues here...
 
 
 # -------------------- ADMIN TOOLS --------------------
