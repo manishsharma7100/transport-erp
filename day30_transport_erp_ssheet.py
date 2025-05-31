@@ -214,6 +214,22 @@ elif menu == "Analytics":
     else:
         st.warning("No data to analyze.")
 
+ #COST PREDICTION VS ACTUAL Under Analytics ----------
+st.subheader("📉 Actual vs Predicted Trip Cost")
+
+try:
+    df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+    df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+    df = df.dropna(subset=["KM", "Cost"])
+
+    # Predict using current model
+    df["Predicted"] = model.predict(df[["KM"]])
+
+    st.line_chart(df[["Cost", "Predicted"]])
+except Exception as e:
+    st.warning(f"Could not generate prediction graph: {e}")
+
+
 # -------------------- ADMIN TOOLS --------------------
 elif menu == "Admin Tools":
     st.subheader("🛠️ Admin Panel – Manage Trips")
