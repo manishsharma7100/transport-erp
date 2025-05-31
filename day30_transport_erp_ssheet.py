@@ -10,6 +10,7 @@ import joblib
 import os
 
 # ---------------- GOOGLE SHEET SETUP ----------------
+
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -30,6 +31,32 @@ try:
         sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
 except:
     pass
+
+#new addtiion in google sheet setup 
+
+def train_model_from_sheet(sheet):
+   
+
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+
+    if not df.empty and "KM" in df.columns and "Cost" in df.columns:
+        df = df.dropna(subset=["KM", "Cost"])
+        df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
+        df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
+
+        km = df[["KM"]].values
+        cost = df["Cost"].values
+
+        model = LinearRegression()
+        model.fit(km, cost)
+
+        joblib.dump(model, "trip_cost_model.pkl")
+        return model
+    else:
+        return None
+
+
 
 # ---------------- MODEL TRAINING ----------------
 MODEL_PATH = "trip_cost_model.pkl"
@@ -206,3 +233,13 @@ elif menu == "Admin Tools":
             st.success("All trips cleared.")
     else:
         st.warning("No trip data available.")
+
+st.markdown("### 🔁 Retrain AI Model")
+if st.button("Retrain from Sheet Data"):
+    new_model = train_model_from_sheet(sheet)
+    if new_model:
+        model = new_model
+        st.success("✅ Model retrained successfully and saved!")
+    else:
+        st.error("❌ Failed to retrain. Please ensure KM and Cost data exist.")
+
