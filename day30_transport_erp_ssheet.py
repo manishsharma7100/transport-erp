@@ -211,10 +211,8 @@ elif menu == "Analytics":
         fig, ax = plt.subplots()
         df.groupby("Driver")["KM"].sum().plot.pie(autopct="%1.1f%%", ax=ax)
         st.pyplot(fig)
-    else:
-        st.warning("No data to analyze.")
 
- #COST PREDICTION VS ACTUAL Under Analytics ----------
+    #COST PREDICTION VS ACTUAL Under Analytics ----------
 st.subheader("📉 Actual vs Predicted Trip Cost")
 
 try:
@@ -228,6 +226,13 @@ try:
     st.line_chart(df[["Cost", "Predicted"]])
 except Exception as e:
     st.warning(f"Could not generate prediction graph: {e}")
+
+
+    
+    else:
+        st.warning("No data to analyze.")
+
+ 
 
 
 # -------------------- ADMIN TOOLS --------------------
