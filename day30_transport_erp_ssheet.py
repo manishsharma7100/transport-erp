@@ -155,7 +155,6 @@ if suggested_km and km > 0:
     if deviation > 0.1 * suggested_km:
         st.warning(f"⚠️ Entered KM is {deviation:.1f} km off from Google Maps.")
 
-
     if st.button("Save Trip"):
         if driver and vehicle and from_city and to_city and km > 0:
                 
