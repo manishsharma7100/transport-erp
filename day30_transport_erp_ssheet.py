@@ -117,6 +117,8 @@ menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics
 
 
 # -------------------- TRIP ENTRY --------------------
+
+# -------------------- TRIP ENTRY --------------------
 if menu == "Trip Entry":
     st.subheader("📝 Enter a New Trip")
 
@@ -124,42 +126,48 @@ if menu == "Trip Entry":
     vehicle = st.text_input("Vehicle Number")
     from_city = st.text_input("From City")
     to_city = st.text_input("To City")
-    suggested_km = None
-if from_city and to_city:
+
+    # Load Google Maps API Key securely
     try:
         api_key = st.secrets["other_secrets"]["google_maps_api"]
         st.write("✅ Google Maps API key loaded.")
-
-        url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-        params = {
-            "origins": quote(from_city),
-            "destinations": quote(to_city),
-            "key": AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY,
-            "units": "metric"
-        }
-        response = requests.get(url, params=params)
-        data = response.json()
-        if data["status"] == "OK":
-            distance_text = data["rows"][0]["elements"][0]["distance"]["text"]
-            suggested_km = float(distance_text.replace(" km", "").replace(",", ""))
-            st.success(f"📍 Google Maps Distance: {suggested_km:.1f} km")
-        else:
-            st.warning("⚠️ Google Maps API couldn't get distance.")
     except Exception as e:
-        st.error(f"❌ Error getting distance: {e}")
+        st.error(f"❌ Failed to load API key: {e}")
+        api_key = None
 
-# Show KM input and allow overwrite
-km = st.number_input("Distance in KM", min_value=0.0, step=1.0, value=suggested_km or 0.0)
+    # Fetch suggested KM using Google Maps
+    suggested_km = None
+    if from_city and to_city and api_key:
+        try:
+            import requests
 
-# Warning if deviation is large
-if suggested_km and km > 0:
-    deviation = abs(km - suggested_km)
-    if deviation > 0.1 * suggested_km:
-        st.warning(f"⚠️ Entered KM is {deviation:.1f} km off from Google Maps.")
+            def get_distance(from_city, to_city, api_key):
+                endpoint = "https://maps.googleapis.com/maps/api/distancematrix/json"
+                params = {
+                    "origins": from_city,
+                    "destinations": to_city,
+                    "key": api_key,
+                    "units": "metric"
+                }
+                response = requests.get(endpoint, params=params)
+                data = response.json()
+                if data["rows"][0]["elements"][0]["status"] == "OK":
+                    distance_meters = data["rows"][0]["elements"][0]["distance"]["value"]
+                    return round(distance_meters / 1000, 2)
+                else:
+                    raise ValueError("Invalid response from Google Maps")
+
+            suggested_km = get_distance(from_city, to_city, api_key)
+            st.success(f"📏 Suggested Distance (Google Maps): {suggested_km} km")
+        except Exception as e:
+            st.error(f"❌ Error getting distance: {e}")
+            suggested_km = 0.0
+
+    # KM input, pre-filled with suggested value
+    km = st.number_input("Distance in KM", min_value=0.0, value=suggested_km or 0.0, step=1.0)
 
     if st.button("Save Trip"):
         if driver and vehicle and from_city and to_city and km > 0:
-                
             trip_type = "LONG TRIP" if km >= 300 else "SHORT TRIP"
             predicted_cost = model.predict([[km]])[0]
 
@@ -176,13 +184,15 @@ if suggested_km and km > 0:
 
             try:
                 sheet.append_row(trip_row)
-                st.success("✅ Trip saved with AI prediction!")
+                st.success("✅ Trip saved with AI cost prediction and Google distance!")
             except Exception as e:
                 st.error(f"❌ Failed to save trip: {e}")
         else:
-            st.error("Please fill all fields.")
+            st.error("❗ Please fill all fields correctly.")
+
 
 # -------------------- TRIP TABLE --------------------
+
 
 elif menu == "Trip Table":
     st.subheader("📋 View and Filter Trips")
