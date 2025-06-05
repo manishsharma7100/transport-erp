@@ -128,6 +128,8 @@ if menu == "Trip Entry":
 if from_city and to_city:
     try:
         api_key = st.secrets["other_secrets"]["AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY"]
+        st.write("✅ Google Maps API key loaded.")
+
         url = "https://maps.googleapis.com/maps/api/distancematrix/json"
         params = {
             "origins": quote(from_city),
