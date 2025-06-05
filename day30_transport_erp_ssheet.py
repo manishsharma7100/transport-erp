@@ -127,7 +127,7 @@ if menu == "Trip Entry":
     suggested_km = None
 if from_city and to_city:
     try:
-        api_key = st.secrets["other_secrets"]["AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY"]
+        api_key = st.secrets["other_secrets"]["google_maps_api"]
         st.write("✅ Google Maps API key loaded.")
 
         url = "https://maps.googleapis.com/maps/api/distancematrix/json"
