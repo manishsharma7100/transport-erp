@@ -8,6 +8,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import joblib
 import os
+from urllib.parse import quote
 import requests
 
 
@@ -58,31 +59,6 @@ def train_model_from_sheet(sheet):
     else:
         return None
 
-
-#Google Maps setup
-
-def get_distance_from_google_maps(origin, destination):
-    try:
-        api_key = st.secrets["maps_api_key"]
-        url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-        params = {
-            "origins": origin,
-            "destinations": destination,
-            "key": api_key,
-            "units": "metric"
-        }
-        response = requests.get(url, params=params)
-        data = response.json()
-
-        if data["status"] == "OK":
-            distance_text = data["rows"][0]["elements"][0]["distance"]["text"]
-            distance_km = float(distance_text.replace(" km", "").replace(",", ""))
-            return distance_km
-        else:
-            return None
-    except Exception as e:
-        st.warning(f"Google Maps error: {e}")
-        return None
 
 
 # ---------------- MODEL TRAINING ----------------
@@ -148,34 +124,43 @@ if menu == "Trip Entry":
     vehicle = st.text_input("Vehicle Number")
     from_city = st.text_input("From City")
     to_city = st.text_input("To City")
-
-    # Fetch distance using Google Maps API
-    distance_km = None
-    if from_city and to_city:
-        from urllib.parse import quote
-        import requests
-
+    suggested_km = None
+if from_city and to_city:
+    try:
         api_key = st.secrets["AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY"]
-        origins = quote(from_city)
-        destinations = quote(to_city)
-        url = f"https://maps.googleapis.com/maps/api/distancematrix/json?origins={origins}&destinations={destinations}&key={AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY}"
+        url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+        params = {
+            "origins": quote(from_city),
+            "destinations": quote(to_city),
+            "key": AIzaSyBVTGnsJ5U-uKtMLPozXK2mwC1DRkCn7iY,
+            "units": "metric"
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data["status"] == "OK":
+            distance_text = data["rows"][0]["elements"][0]["distance"]["text"]
+            suggested_km = float(distance_text.replace(" km", "").replace(",", ""))
+            st.success(f"📍 Google Maps Distance: {suggested_km:.1f} km")
+        else:
+            st.warning("⚠️ Google Maps API couldn't get distance.")
+    except Exception as e:
+        st.error(f"❌ Error getting distance: {e}")
 
-        try:
-            response = requests.get(url)
-            data = response.json()
-            if data["rows"][0]["elements"][0]["status"] == "OK":
-                meters = data["rows"][0]["elements"][0]["distance"]["value"]
-                distance_km = round(meters / 1000, 2)
-                st.success(f"📍 Distance fetched: {distance_km} km")
-            else:
-                st.warning("⚠️ Google API could not find a valid route.")
-        except Exception as e:
-            st.error(f"❌ Error fetching distance: {e}")
+# Show KM input and allow overwrite
+km = st.number_input("Distance in KM", min_value=0.0, step=1.0, value=suggested_km or 0.0)
+
+# Warning if deviation is large
+if suggested_km and km > 0:
+    deviation = abs(km - suggested_km)
+    if deviation > 0.1 * suggested_km:
+        st.warning(f"⚠️ Entered KM is {deviation:.1f} km off from Google Maps.")
+
 
     if st.button("Save Trip"):
-        if driver and vehicle and from_city and to_city and distance_km:
-            trip_type = "LONG TRIP" if distance_km >= 300 else "SHORT TRIP"
-            predicted_cost = model.predict([[distance_km]])[0]
+        if driver and vehicle and from_city and to_city and km > 0:
+                
+            trip_type = "LONG TRIP" if km >= 300 else "SHORT TRIP"
+            predicted_cost = model.predict([[km]])[0]
 
             trip_row = [
                 datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -183,18 +168,19 @@ if menu == "Trip Entry":
                 vehicle,
                 from_city,
                 to_city,
-                distance_km,
+                km,
                 round(predicted_cost),
                 trip_type
             ]
 
             try:
                 sheet.append_row(trip_row)
-                st.success("✅ Trip saved with AI cost prediction!")
+                st.success("✅ Trip saved with AI prediction!")
             except Exception as e:
                 st.error(f"❌ Failed to save trip: {e}")
         else:
-            st.error("Please complete all fields and ensure distance is fetched.")
+            st.error("Please fill all fields.")
+
 # -------------------- TRIP TABLE --------------------
 
 elif menu == "Trip Table":
@@ -237,8 +223,8 @@ elif menu == "Trip Table":
         st.warning("No data found.")
 
 
-# ---------------- ANALYTICS ----------------
-if menu == "Analytics":
+# -------------------- ANALYTICS --------------------
+elif menu == "Analytics":
     st.subheader("📊 Trip Analytics Dashboard")
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
@@ -250,6 +236,7 @@ if menu == "Analytics":
         col3.metric("Drivers", df["Driver"].nunique())
 
         st.markdown("---")
+
         st.subheader("Trips per Driver")
         st.bar_chart(df["Driver"].value_counts())
 
@@ -257,29 +244,8 @@ if menu == "Analytics":
         fig, ax = plt.subplots()
         df.groupby("Driver")["KM"].sum().plot.pie(autopct="%1.1f%%", ax=ax)
         st.pyplot(fig)
-
-        # ---------- COST PREDICTION VS ACTUAL ----------
-        st.subheader("📉 Actual vs Predicted Trip Cost")
-        try:
-            df["KM"] = pd.to_numeric(df["KM"], errors="coerce")
-            df["Cost"] = pd.to_numeric(df["Cost"], errors="coerce")
-            df = df.dropna(subset=["KM", "Cost"])
-
-            df["Predicted"] = model.predict(df[["KM"]])
-
-            st.line_chart(df[["Cost", "Predicted"]])
-
-            df["Error"] = df["Cost"] - df["Predicted"]
-            st.dataframe(df[["KM", "Cost", "Predicted", "Error"]])
-
-        except Exception as e:
-            st.warning(f"Could not generate prediction graph: {e}")
-
     else:
         st.warning("No data to analyze.")
-
-# The rest of your app (Trip Entry, Trip Table, Admin Tools) continues here...
-
 
 # -------------------- ADMIN TOOLS --------------------
 elif menu == "Admin Tools":
