@@ -109,7 +109,7 @@ if model is None:
 st.set_page_config(page_title="Transport ERP", layout="wide")
 st.title("🚛 Transport ERP System")
 
-menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools" , "Trip Planning"])
+menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools" , "Trip Planning" , ])
 
 # Add rest of your Streamlit app here...
 # This block sets up Sheet + AI Model with error handling and retraining ability.
