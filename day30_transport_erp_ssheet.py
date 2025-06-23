@@ -31,7 +31,7 @@ sheet = client.open("transport_trip_log").sheet1
 # Ensure header row exists
 try:
     if sheet.row_count == 0 or sheet.row_values(1) == []:
-        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type"])
+        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type" , "Trip Planning" ])
 except:
     pass
 
@@ -113,6 +113,48 @@ menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics
 
 # Add rest of your Streamlit app here...
 # This block sets up Sheet + AI Model with error handling and retraining ability.
+
+
+#Trip Planning 
+
+elif menu == "Trip Planning":
+    st.subheader("🧭 Trip Planning – Phase 1")
+
+    customer = st.text_input("Customer Name (Required)")
+    origin = st.text_input("Origin Location (Required)")
+    destination = st.text_input("Destination Location (Optional)")
+
+    if st.button("📌 Save Trip Plan"):
+        if customer and origin:
+            plan_sheet = client.open("transport_trip_log").worksheet("TripPlan")
+            plan_sheet.append_row([
+                datetime.now().strftime("%Y-%m-%d %H:%M"),
+                customer,
+                origin,
+                destination
+            ])
+            st.success("✅ Trip plan saved!")
+        else:
+            st.error("Customer and Origin are required fields.")
+
+    st.markdown("### 📤 Upload Excel File to Add Trip Plans")
+    uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx"])
+    if uploaded_file:
+        df_upload = pd.read_excel(uploaded_file)
+        required_cols = {"Customer", "Origin"}
+        if not required_cols.issubset(df_upload.columns):
+            st.error("Excel must have 'Customer' and 'Origin' columns.")
+        else:
+            plan_sheet = client.open("transport_trip_log").worksheet("TripPlan")
+            for _, row in df_upload.iterrows():
+                plan_sheet.append_row([
+                    datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    row.get("Customer", ""),
+                    row.get("Origin", ""),
+                    row.get("Destination", "")
+                ])
+            st.success("✅ Excel trip plans uploaded successfully!")
+
 
 
 
