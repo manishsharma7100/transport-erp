@@ -31,7 +31,7 @@ sheet = client.open("transport_trip_log").sheet1
 # Ensure header row exists
 try:
     if sheet.row_count == 0 or sheet.row_values(1) == []:
-        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type" , "Trip Planning" ])
+        sheet.append_row(["Date", "Driver", "Vehicle", "From", "To", "KM", "Cost", "Trip Type" ,  ])
 except:
     pass
 
@@ -109,7 +109,7 @@ if model is None:
 st.set_page_config(page_title="Transport ERP", layout="wide")
 st.title("🚛 Transport ERP System")
 
-menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools"])
+menu = st.sidebar.radio("📂 Navigate", ["Trip Entry", "Trip Table", "Analytics", "Admin Tools" , "Trip Planning"])
 
 # Add rest of your Streamlit app here...
 # This block sets up Sheet + AI Model with error handling and retraining ability.
